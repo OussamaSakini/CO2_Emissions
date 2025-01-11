@@ -101,129 +101,159 @@ d3.csv(url).then(data => {
 
     // Bubble Chart Update
     function updateBubbleChart(type, year, sortKey) {
-        const filteredData = filterData(type, year);
-        const bubbleData = d3.rollup(
-            filteredData,
-            v => ({
-                industrial: d3.sum(v, d => d["Emissions industrielles de CO2"]),
-                global: d3.sum(v, d => d["Emissions globales de CO2"]),
-                deforestation: d3.sum(v, d => d["Emissions de CO2 dues à la déforestation"]),
-            }),
-            d => d.Entity
-        );
+    const filteredData = filterData(type, year);
+    const bubbleData = d3.rollup(
+        filteredData,
+        v => ({
+            industrial: d3.sum(v, d => d["Emissions industrielles de CO2"]),
+            global: d3.sum(v, d => d["Emissions globales de CO2"]),
+            deforestation: d3.sum(v, d => d["Emissions de CO2 dues à la déforestation"]),
+        }),
+        d => d.Entity
+    );
 
-        const dataArray = Array.from(bubbleData, ([key, value]) => ({
-            entity: key,
-            industrial: value.industrial,
-            global: value.global,
-            deforestation: value.deforestation,
-            total: value.industrial + value.global + value.deforestation,
-        }))
-            .sort((a, b) => b[sortKey] - a[sortKey])
-            .slice(0, 10);
+    const dataArray = Array.from(bubbleData, ([key, value]) => ({
+        entity: key,
+        industrial: value.industrial,
+        global: value.global,
+        deforestation: value.deforestation,
+        total: value.industrial + value.global + value.deforestation,
+    }))
+        .sort((a, b) => b[sortKey] - a[sortKey])
+        .slice(0, 10);
 
-        const radiusScale = d3.scaleSqrt()
-            .domain([0, d3.max(dataArray, d => d[sortKey])])
-            .range([20, 100]);
+    const radiusScale = d3.scaleSqrt()
+        .domain([0, d3.max(dataArray, d => d[sortKey])])
+        .range([20, 100]);
 
-        const simulation = d3.forceSimulation(dataArray)
-            .force("x", d3.forceX(width / 2).strength(0.1))
-            .force("y", d3.forceY(height / 2).strength(0.1))
-            .force("collide", d3.forceCollide(d => radiusScale(d[sortKey]) + 5))
-            .stop();
+    const simulation = d3.forceSimulation(dataArray)
+        .force("x", d3.forceX(width / 2).strength(0.1))
+        .force("y", d3.forceY(height / 2).strength(0.1))
+        .force("collide", d3.forceCollide(d => radiusScale(d[sortKey]) + 5))
+        .stop();
 
-        for (let i = 0; i < 200; i++) simulation.tick();
+    for (let i = 0; i < 200; i++) simulation.tick();
 
-        const circles = svg1.selectAll("circle").data(dataArray, d => d.entity);
-        circles.enter()
-            .append("circle")
-            .attr("fill", "#007bff")
-            .merge(circles)
-            .transition()
-            .duration(1000)
-            .attr("r", d => radiusScale(d[sortKey]))
-            .attr("cx", d => d.x)
-            .attr("cy", d => d.y);
+    const circles = svg1.selectAll("circle").data(dataArray, d => d.entity);
+    circles.enter()
+        .append("circle")
+        .attr("fill", "#007bff")
+        .merge(circles)
+        .transition()
+        .duration(1000)
+        .attr("r", d => radiusScale(d[sortKey]))
+        .attr("cx", d => d.x)
+        .attr("cy", d => d.y)
+        .selection()
+        .on("mouseover", (event, d) => {
+            tooltip.style("opacity", 1)
+                .html(`<strong>${d.entity}</strong><br>${(d[sortKey] / 1e9).toFixed(2)} Gt`)
+                .style("left", (event.pageX + 10) + "px")
+                .style("top", (event.pageY + 10) + "px");
+        })
+        .on("mousemove", (event) => {
+            tooltip.style("left", (event.pageX + 10) + "px")
+                .style("top", (event.pageY + 10) + "px");
+        })
+        .on("mouseout", () => {
+            tooltip.style("opacity", 0);
+        });
 
-        circles.exit().remove();
+    circles.exit().remove();
 
-        const labels = svg1.selectAll(".bubble-label").data(dataArray, d => d.entity);
-        labels.enter()
-            .append("text")
-            .attr("class", "bubble-label")
-            .attr("text-anchor", "middle")
-            .style("font-size", "12px")
-            .merge(labels)
-            .transition()
-            .duration(1000)
-            .attr("x", d => d.x)
-            .attr("y", d => d.y + 4)
-            .text(d => d.entity);
+    const labels = svg1.selectAll(".bubble-label").data(dataArray, d => d.entity);
+    labels.enter()
+        .append("text")
+        .attr("class", "bubble-label")
+        .attr("text-anchor", "middle")
+        .style("font-size", "12px")
+        .merge(labels)
+        .transition()
+        .duration(1000)
+        .attr("x", d => d.x)
+        .attr("y", d => d.y + 4)
+        .text(d => d.entity);
 
-        labels.exit().remove();
-    }
+    labels.exit().remove();
+}
 
     // Bar Chart Update
-    function updateBarChart(type, year, sortKey) {
-        const filteredData = filterData(type, year);
-        const aggregatedData = d3.rollup(
-            filteredData,
-            v => ({
-                industrial: d3.sum(v, d => d["Emissions industrielles de CO2"]),
-                global: d3.sum(v, d => d["Emissions globales de CO2"]),
-                deforestation: d3.sum(v, d => d["Emissions de CO2 dues à la déforestation"]),
+    // Bar Chart Update avec infobulle
+function updateBarChart(type, year, sortKey) {
+    const filteredData = filterData(type, year);
+    const aggregatedData = d3.rollup(
+        filteredData,
+        v => ({
+            industrial: d3.sum(v, d => d["Emissions industrielles de CO2"]),
+            global: d3.sum(v, d => d["Emissions globales de CO2"]),
+            deforestation: d3.sum(v, d => d["Emissions de CO2 dues à la déforestation"]),
+        }),
+        d => d.Entity
+    );
+
+    const topEntities = Array.from(aggregatedData, ([key, value]) => ({
+        entity: key,
+        industrial: value.industrial,
+        global: value.global,
+        deforestation: value.deforestation,
+        total: value.industrial + value.global + value.deforestation,
+    }))
+        .sort((a, b) => b[sortKey] - a[sortKey])
+        .slice(0, 10);
+
+    const x = d3.scaleBand()
+        .domain(topEntities.map(d => d.entity))
+        .range([0, width])
+        .padding(0.1);
+
+    const y = d3.scaleLinear()
+        .domain([0, d3.max(topEntities, d => d[sortKey])])
+        .range([height, 0]);
+
+    // Mise à jour des rectangles
+    svg2.selectAll("rect").data(topEntities).join(
+        enter => enter.append("rect")
+            .attr("fill", "#007bff")
+            .attr("x", d => x(d.entity))
+            .attr("y", d => y(d[sortKey]))
+            .attr("width", x.bandwidth())
+            .attr("height", d => height - y(d[sortKey]))
+            .on("mouseover", (event, d) => {
+                tooltip.style("opacity", 1)
+                    .html(`<strong>${d.entity}</strong><br>${(d[sortKey] / 1e9).toFixed(2)} Gt`)
+                    .style("left", (event.pageX + 10) + "px")
+                    .style("top", (event.pageY + 10) + "px");
+            })
+            .on("mousemove", (event) => {
+                tooltip.style("left", (event.pageX + 10) + "px")
+                    .style("top", (event.pageY + 10) + "px");
+            })
+            .on("mouseout", () => {
+                tooltip.style("opacity", 0);
             }),
-            d => d.Entity
-        );
+        update => update.transition().duration(1000)
+            .attr("x", d => x(d.entity))
+            .attr("y", d => y(d[sortKey]))
+            .attr("width", x.bandwidth())
+            .attr("height", d => height - y(d[sortKey])),
+        exit => exit.remove()
+    );
 
-        const topEntities = Array.from(aggregatedData, ([key, value]) => ({
-            entity: key,
-            industrial: value.industrial,
-            global: value.global,
-            deforestation: value.deforestation,
-            total: value.industrial + value.global + value.deforestation,
-        }))
-            .sort((a, b) => b[sortKey] - a[sortKey])
-            .slice(0, 10);
+    // Mise à jour des axes
+    svg2.selectAll(".x-axis").remove();
+    svg2.append("g")
+        .attr("class", "x-axis")
+        .attr("transform", `translate(0,${height})`)
+        .call(d3.axisBottom(x))
+        .selectAll("text")
+        .attr("transform", "rotate(-45)")
+        .style("text-anchor", "end");
 
-        const x = d3.scaleBand()
-            .domain(topEntities.map(d => d.entity))
-            .range([0, width])
-            .padding(0.1);
-
-        const y = d3.scaleLinear()
-            .domain([0, d3.max(topEntities, d => d[sortKey])])
-            .range([height, 0]);
-
-        svg2.selectAll("rect").data(topEntities).join(
-            enter => enter.append("rect")
-                .attr("fill", "#007bff")
-                .attr("x", d => x(d.entity))
-                .attr("y", d => y(d[sortKey]))
-                .attr("width", x.bandwidth())
-                .attr("height", d => height - y(d[sortKey])),
-            update => update.transition().duration(1000)
-                .attr("x", d => x(d.entity))
-                .attr("y", d => y(d[sortKey]))
-                .attr("width", x.bandwidth())
-                .attr("height", d => height - y(d[sortKey])),
-            exit => exit.remove()
-        );
-
-        svg2.selectAll(".x-axis").remove();
-        svg2.append("g")
-            .attr("class", "x-axis")
-            .attr("transform", `translate(0,${height})`)
-            .call(d3.axisBottom(x))
-            .selectAll("text")
-            .attr("transform", "rotate(-45)")
-            .style("text-anchor", "end");
-
-        svg2.selectAll(".y-axis").remove();
-        svg2.append("g")
-            .attr("class", "y-axis")
-            .call(d3.axisLeft(y).tickFormat(d => `${(d / 1e9).toFixed(2)} Gt`));
-    }
+    svg2.selectAll(".y-axis").remove();
+    svg2.append("g")
+        .attr("class", "y-axis")
+        .call(d3.axisLeft(y).tickFormat(d => `${(d / 1e9).toFixed(2)} Gt`));
+}
 
     // Event Listeners
     let currentType = "countries";
@@ -276,4 +306,5 @@ d3.csv(url).then(data => {
     // Initial charts update
     updateBubbleChart(currentType, currentYear, currentSortKey);
     updateBarChart(currentType, currentYear, currentSortKey);
+
 });
